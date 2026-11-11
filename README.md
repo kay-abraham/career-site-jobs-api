@@ -31,7 +31,7 @@ It reads the public job board APIs of 15 systems: Greenhouse, Lever, Ashby, Work
 
 - **Read every open job** from a company's own job board on 15 systems, from startups on Greenhouse and Ashby to large employers on Workday and small trades, retail, and staffing firms on Teamtailor, BambooHR, and JazzHR.
 - **Find the board for you.** Give it a domain like stripe.com, a careers page URL, a job board URL, or `ats:slug`.
-- **Filter like a job seeker.** Seniority, minimum salary in USD a year, skills with a match score, description keywords, words to exclude, visa sponsorship, relocation support, and stale postings.
+- **Filter like a job seeker.** Seniority, minimum salary in any currency and period, skills with a match score, description keywords, words to exclude, visa sponsorship, relocation support, and stale postings.
 - **Say it when data is missing.** A job without a published salary or level isn't silently dropped. It's kept and marked partial, or dropped if you pick strict mode.
 - **Read big employers on Workday.** In a test on November 11, 2026, large US enterprises went from 1 of 40 readable to 9 of 40, and NVIDIA's roughly 2,000 open roles were read in about 2 minutes.
 - **Flag a hiring surge** per company, so you can sort a target list by who's growing.
@@ -80,7 +80,7 @@ Filters shape the job rows. The company row still counts every open job and adds
 
 ## What you get
 
-**Jobs** (the main table). One row per open role: title, department, team, location, country, remote or hybrid, employment type, seniority, salary when the company publishes it (also converted to USD a year), posted date, how many days it's been open, job link, and apply link. Plain-text descriptions if you want them. With job seeker filters on, each row also carries `matchQuality`, `unknownFields`, and, when you set skills, `skillsMatched` and `skillsMatchScore`.
+**Jobs** (the main table). One row per open role: title, department, team, location, country, remote or hybrid, employment type, seniority, salary when the company publishes it (also converted to USD a year, and to your chosen currency and period), posted date, how many days it's been open, job link, and apply link. Plain-text descriptions if you want them. With job seeker filters on, each row also carries `matchQuality`, `unknownFields`, and, when you set skills, `skillsMatched` and `skillsMatchScore`.
 
 **Companies** (the second table). One row per company:
 
@@ -246,7 +246,7 @@ In a test on November 11, 2026, this read NVIDIA's 1,999 open roles and Masterca
   "url": "https://mastercard.wd1.myworkdayjobs.com/CorporateCareers/job/Purchase-New-York/Senior-Business-Analyst--Chief-Administrative-Office_R-294497" }
 ```
 
-Workday only gives the description with one extra call per job, so the Actor makes those calls only when you turn on descriptions or use a text filter (skills, description keywords, visa, relocation). That's slower on a 2,000-job employer. A Workday board costs one company fee like any other.
+Workday only gives the description and pay with one extra call per job, so the Actor makes those calls only when you turn on descriptions, use a text filter (skills, description keywords, visa, relocation), or use a salary filter (`minSalary`, `minSalaryUsdYear`, `salaryOnly`). With `postedWithinDays` set, only jobs inside that window get the extra call. That's slower on a 2,000-job employer. A Workday board costs one company fee like any other.
 
 ### 5. Remote US sales roles at target accounts
 
@@ -338,7 +338,15 @@ In a test on November 11, 2026, this took 8 seconds, returned 98 job rows (Ramp 
 | Ramp | Machine Learning Engineer | $200K - $330K |
 | Vercel | DevRel Engineer, Agentic Infrastructure | $168,000 - $252,000 |
 
-The text is whatever the company wrote, so formats differ (`$189K` versus `$153,000`). Each job row also carries a structured `salary` object with min, max, and currency, plus `salaryMinUsdYear` and `salaryMaxUsdYear` for easy sorting. Internship rows can show a single number like `$55 - $55 USD`. When the board doesn't say the period, the Actor guesses from the size of the number (under 1,000 is read as hourly), so check those by hand. Greenhouse pay is read from the job text, so unusual formats can be missed.
+The text is whatever the company wrote, so formats differ (`$189K` versus `$153,000`). Each job row also carries a structured `salary` object with min, max, and currency, plus `salaryMinUsdYear` and `salaryMaxUsdYear` for easy sorting. Internship rows can show a single number like `$55 - $55 USD`. When the board doesn't say the period, the Actor guesses from the size of the number (under 1,000 is read as hourly, under 20,000 as monthly, anything else as yearly), so check those by hand. Greenhouse pay is read from the job text, so unusual formats can be missed.
+
+#### Pay in any currency and period
+
+Set `minSalary`, `salaryCurrency`, and `salaryPeriod` to filter in the numbers you think in, for example 60,000 EUR a year or 45 GBP an hour. Each job's pay is converted to that currency and period before it's compared, so a US job at $140,000 a year and a UK job at 70 GBP an hour are checked on the same scale. Job rows then carry `salaryMin`, `salaryMax`, `salaryCurrencyShown`, and `salaryPeriodShown` next to the USD fields. These four fields appear only when you set `minSalary` or change the currency or period from the default. `salaryText` is always exactly what the company wrote.
+
+Boards label periods in many ways. `per-year-salary`, `annual`, `yearly`, and `year` all mean year. `per-hour-wage`, `hourly`, and `hour` mean hour. `monthly` and `month` mean month, `weekly` means week, and `daily` means day. With no label, the size of the number decides: under 1,000 is hourly, under 20,000 is monthly, anything else is yearly.
+
+**Data note.** Most jobs outside the US don't publish pay yet. In a November 11, 2026 sample of 20,000 jobs, 4.8% of US jobs published pay in the list data. Under 3% of jobs in the UK, Germany, France, Spain, the Netherlands, Ireland, and Canada did. EU pay transparency laws come into force country by country through 2027, so expect that share to grow. Pay on Workday, BambooHR, Rippling, and JazzHR boards is read from each job page when a salary filter is on, so a minimum salary filter sees it there too. Jobs with no pay are kept and marked partial, or dropped with `unknownValues` set to `exclude`.
 
 ### 8. Weekly new-role alerts with monitoring
 
@@ -368,9 +376,12 @@ Pull every open role from the companies you list, with salary where it's publish
 | `countries` | Country names or two-letter codes (`United States`, `DE`, `UK`). A job listed only as "Remote" or a region like EMEA has no country: it's kept and marked partial, or dropped in strict mode. |
 | `remoteOnly` | Keep only jobs the board marks as remote, or with Remote in the location. Always strict. |
 | `departments` | Keep jobs whose department or team contains any of these, like Sales or Data. |
-| `employmentTypes` | `full-time`, `part-time`, `contract`, `internship`, `temporary`. A job whose board and title don't say shows `not-stated`. |
-| `seniority` | `intern`, `entry`, `mid`, `senior`, `staff`, `lead`, `manager`, `director`, `vp`, `executive`. Read from the job title. A plain "Software Engineer" says no level, so it shows `not-stated`. |
-| `minSalaryUsdYear` | Keep jobs whose top published pay is at least this much a year in USD. Other currencies and hourly or monthly pay are converted with fixed approximate rates (hourly x 2,080, monthly x 12). 0 means off. |
+| `employmentTypes` | `full-time`, `part-time`, `contract`, `internship`, `temporary`. Words like Vollzeit, Teilzeit, CDI, CDD, Tiempo completo, Voltijd, and Tempo pieno are understood. A job whose board and title don't say shows `not-stated`. |
+| `seniority` | `intern`, `entry`, `mid`, `senior`, `staff`, `lead`, `manager`, `director`, `vp`, `executive`. Read from the job title. Titles in German, French, Spanish, Dutch, and Italian count too (Praktikum, Werkstudent, Stagiaire, Becario, Teamleiter, Directeur, Geschäftsführer, and more). A plain "Software Engineer" says no level, so it shows `not-stated`. |
+| `minSalary` | Keep jobs whose top published pay is at least this much, in the currency and period you pick. Pay in other currencies and periods is converted first. 0 means off. Turns on the per-job page read for boards that only show pay there. |
+| `salaryCurrency` | `USD` (default), `EUR`, `GBP`, `CHF`, `CAD`, `AUD`, `SEK`, `NOK`, `DKK`, `PLN`, `CZK`, `INR`, `SGD`, or `JPY`. Each job row also gets `salaryMin` and `salaryMax` in this currency. |
+| `salaryPeriod` | `year` (default), `month`, or `hour`. Hour is year / 2,080 and month is year / 12. |
+| `minSalaryUsdYear` | Older field; use `minSalary` instead. Same filter, fixed to USD a year. If you set both, `minSalary` wins and the run summary says so. |
 | `salaryOnly` | Keep only jobs with a published pay range. Always strict. |
 | `descriptionKeywords` | Keep jobs whose title or description contains any of these words, like python or kubernetes. Whole-word match, so `sql` doesn't match NoSQL. Each row lists what matched in `descriptionMatches`. |
 | `excludeKeywords` | Drop jobs whose title contains any of these words, like intern or recruiter. |
@@ -557,7 +568,7 @@ The run's `RUN_SUMMARY` record shows results per job board system, data complete
 
 **How is the country detected?** From the board's own country field when it has one. Otherwise from the location text (`London, UK` becomes GB, `Munich` becomes DE). A job listed in several places can match several countries. A job listed only as "Remote" or a region has no country, so a country filter keeps it as partial, or drops it in strict mode.
 
-**How is the salary converted to USD?** The structured min and max are converted to USD a year with fixed approximate exchange rates. Hourly pay is multiplied by 2,080, monthly by 12. The rates are rough, so treat `minSalaryUsdYear` as a filter, not an exact figure.
+**How is the salary converted?** The structured min and max are converted to the currency and period you chose, and to USD a year for `salaryMinUsdYear` and `salaryMaxUsdYear`. Hourly pay is multiplied by 2,080 to get a year, and a year is divided by 12 for a month. Rates are the European Central Bank's daily reference rates, fetched at the start of a run when a salary filter or currency is set. If the ECB can't be reached, the Actor uses a fixed table dated 2026-11-11 and says so. `fxSource` in `RUN_SUMMARY` shows which one was used (`ecb 2026-11-10` or `static 2026-11-11`). Treat the result as a filter, not an exact figure.
 
 **What does hiring surge mean?** The company posted at least `surgeMinRoles` roles (default 5) in the last `surgeWindowDays` days (default 14). It's counted inside your job filters, so "sales roles only" gives a sales surge. It's a simple count of posted dates, not a forecast. Boards without posted dates can't show a surge.
 
