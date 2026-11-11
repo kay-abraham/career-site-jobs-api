@@ -1,0 +1,10 @@
+{
+  "companies": [
+    "ashby:ramp",
+    "ashby:linear",
+    "ashby:supabase",
+    "ashby:notion",
+    "ashby:perplexity"
+  ],
+  "postedWithinDays": 7
+}

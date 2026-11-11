@@ -1,0 +1,12 @@
+{
+  "companies": [
+    "stripe.com",
+    "figma.com",
+    "vercel.com",
+    "supabase.com",
+    "gitlab.com",
+    "airtable.com"
+  ],
+  "postedWithinDays": 7,
+  "jobsOutput": "all"
+}

@@ -1,0 +1,9 @@
+{
+  "searchAllCompanies": true,
+  "keywords": [
+    "data engineer",
+    "analytics engineer"
+  ],
+  "postedWithinDays": 7,
+  "searchScope": "quick"
+}

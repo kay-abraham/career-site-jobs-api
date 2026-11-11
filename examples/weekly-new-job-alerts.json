@@ -1,0 +1,17 @@
+{
+  "companies": [
+    "notion.so",
+    "linear.app",
+    "ramp.com",
+    "mercury.com",
+    "canva.com",
+    "sentry.io"
+  ],
+  "monitorName": "target-accounts",
+  "onlyNewJobs": true,
+  "keywords": [
+    "data",
+    "security",
+    "sales"
+  ]
+}

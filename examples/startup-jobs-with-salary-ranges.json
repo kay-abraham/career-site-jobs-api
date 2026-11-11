@@ -1,0 +1,11 @@
+{
+  "companies": [
+    "ramp.com",
+    "linear.app",
+    "supabase.com",
+    "notion.so",
+    "figma.com",
+    "vercel.com"
+  ],
+  "postedWithinDays": 14
+}

@@ -1,0 +1,22 @@
+{
+  "companies": [
+    "figma.com",
+    "vercel.com",
+    "ramp.com",
+    "notion.so",
+    "linear.app",
+    "supabase.com",
+    "datadoghq.com",
+    "mongodb.com",
+    "cloudflare.com",
+    "airtable.com"
+  ],
+  "keywords": [
+    "account executive",
+    "sales development",
+    "business development",
+    "solutions engineer"
+  ],
+  "jobsOutput": "matching",
+  "postedWithinDays": 30
+}
